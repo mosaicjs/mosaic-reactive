@@ -22,6 +22,13 @@ describe('Stream', function() {
 				expected.push(value);
 			}
 		});
+		var pos = 0;
+		source.each(function(val){
+			if (val) {
+				expect(val).to.eql(array[pos++]);
+			}
+		});
+		
 		var array = [ 'first', 'second', 'third', 'fourth', 'fifth' ];
 		array.forEach(function(value) {
 			source.emit(value);
