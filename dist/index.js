@@ -65,12 +65,14 @@ return /******/ (function(modules) { // webpackBootstrap
 		buffered : __webpack_require__(2),
 		Deferred : __webpack_require__(3),
 		delay : __webpack_require__(4),
-		filter : __webpack_require__(5),
-		interval : __webpack_require__(6),
-		map : __webpack_require__(7),
-		merge : __webpack_require__(8),
-		Stream : __webpack_require__(9),
-		zip : __webpack_require__(10)
+		each : __webpack_require__(5),
+		filter : __webpack_require__(6),
+		interval : __webpack_require__(7),
+		map : __webpack_require__(8),
+		merge : __webpack_require__(9),
+		pipe : __webpack_require__(10),
+		Stream : __webpack_require__(11),
+		zip : __webpack_require__(12)
 	};
 
 /***/ },
@@ -84,16 +86,16 @@ return /******/ (function(modules) { // webpackBootstrap
 		var subscription = stream.subscribe(function(p) {
 			buffer.push(p);
 			if (buffer.length >= size) {
-				result.emit(stream.Promise.all(buffer));
+				result.emit(buffer);
 				buffer = [];
 			}
 		});
-		result.fin(function() {
+		result.done(function() {
 			subsciption.unsubscribe();
 		});
-		stream.fin(function() {
+		stream.done(function() {
 			if (buffer.length > 0) {
-				result.emit(stream.Promise.all(buffer));
+				result.emit(buffer);
 				buffer = [];
 			}
 		});
@@ -115,6 +117,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		promise.Promise = Promise;
 		promise.resolve = resolve;
 		promise.reject = reject;
+		promise.fin = promise.done = function(method) {
+			return promise.then(method, method);
+		};
 		return promise;
 	}
 	module.exports = Deferred;
@@ -128,7 +133,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		var t = setTimeout(function() {
 			result.emit();
 		}, timeout);
-		result.fin(function() {
+		result.done(function() {
 			clearTimeout(t);
 		});
 		return result;
@@ -140,26 +145,37 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 5 */
 /***/ function(module, exports) {
 
+	function each(f, stream) {
+		stream = stream || this;
+		var subscription = stream.subscribe(function(val) {
+			f(val);
+		});
+		stream.done(subscription.unsubscribe);
+		return stream;
+	}
+
+	module.exports = each;
+
+/***/ },
+/* 6 */
+/***/ function(module, exports) {
+
 	function filter(filter, stream) {
 		stream = stream || this;
 		var result = stream.clone();
 		stream.then(result.resolve, result.reject);
 		var subscription = stream.subscribe(function(p) {
-			stream.Promise.resolve().then(function() {
-				return filter(p);
-			}).then(function(ok) {
-				if (ok) {
-					result.emit(p);
-				}
-			});
+			if (filter(p)) {
+				result.emit(p);
+			}
 		});
-		result.fin(subscription.unsubscribe);
+		result.done(subscription.unsubscribe);
 		return result;
 	}
 	module.exports = filter;
 
 /***/ },
-/* 6 */
+/* 7 */
 /***/ function(module, exports) {
 
 	function interval(timeout, result) {
@@ -178,26 +194,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = interval;
 
 /***/ },
-/* 7 */
+/* 8 */
 /***/ function(module, exports) {
 
 	function map(f, stream) {
 		stream = stream || this;
 		var result = stream.clone();
 		stream.then(result.resolve, result.reject);
-		var subscription = stream.subscribe(function(p) {
-			result.emit(f ? stream.Promise.resolve().then(function() {
-				return f(p);
-			}) : stream.Promise.resolve(p));
+		var subscription = stream.subscribe(function(val) {
+			result.emit(f ? f(val) : val);
 		});
-		result.fin(subscription.unsubscribe);
+		result.done(subscription.unsubscribe);
 		return result;
 	}
 
 	module.exports = map;
 
 /***/ },
-/* 8 */
+/* 9 */
 /***/ function(module, exports) {
 
 	function merge(streams, result) {
@@ -217,7 +231,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		result.Promise.all(streams).then(function() {
 			result.resolve();
 		});
-		result.fin(function() {
+		result.done(function() {
 			subscriptions.forEach(function(subscription) {
 				subscription.unsubscribe();
 			});
@@ -227,7 +241,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = merge;
 
 /***/ },
-/* 9 */
+/* 10 */
+/***/ function(module, exports) {
+
+	function pipe(stream, that) {
+		that = that || this;
+		var subscription = that.subscribe(function(value) {
+			stream.emit(value);
+		});
+		that.then(stream.resolve, stream.reject);
+		that.done(function() {
+			subscription.unsubscribe();
+		})
+		return that;
+	}
+	module.exports = pipe;
+
+/***/ },
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var Deferred = __webpack_require__(3);
@@ -246,11 +277,12 @@ return /******/ (function(modules) { // webpackBootstrap
 		strm.subscribe = subscribe;
 		strm.unsubscribe = unsubscribe;
 		strm.emit = emit;
-		strm.fin = fin;
+		strm.destroy = strm.end = strm.resolve;
 		strm.clone = clone;
-		strm.fin(function() {
+		strm.closed = false;
+		strm.done(function() {
 			listeners = [];
-			handled = true;
+			strm.closed = true;
 		});
 		strm.then(function(result) {
 			clones.forEach(function(clone) {
@@ -264,7 +296,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		return strm;
 
 		function subscribe(listener) {
-			listeners.push(listener);
+			if (!strm.closed) {
+				listeners.push(listener);
+			}
 			return {
 				strm : strm,
 				unsubscribe : function() {
@@ -279,27 +313,21 @@ return /******/ (function(modules) { // webpackBootstrap
 		}
 
 		function emit(value) {
-			if (handled) {
-				throw new Error('Stream was closed');
-			}
+			if (strm.closed)
+				return;
 			try {
-				var p = Promise.resolve(value);
 				listeners.forEach(function(listener) {
-					listener(p);
+					listener(value);
 				});
 			} catch (err) {
 				strm.reject(err);
 			}
 		}
 
-		function fin(method) {
-			return strm.then(method, method);
-		}
-
 		function clone() {
 			var s = new Stream(Promise, options);
 			clones.push(s);
-			s.fin(function() {
+			s.done(function() {
 				removeFromList(clones, s);
 			});
 			return s;
@@ -318,7 +346,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 10 */
+/* 12 */
 /***/ function(module, exports) {
 
 	function zip(first, second, result) {
@@ -336,14 +364,13 @@ return /******/ (function(modules) { // webpackBootstrap
 		function doZip() {
 			while (a.length > 0 && b.length > 0) {
 				(function(x, y) {
-					var p = result.Promise.all([ x, y ]);
-					result.emit(p);
+					result.emit([ x, y ]);
 				})(a.shift(), b.shift());
 			}
 		}
 		first.then(result.resolve, result.reject);
 		second.then(result.resolve, result.reject);
-		result.fin(function() {
+		result.done(function() {
 			subscriptions.forEach(function(subscription) {
 				subscription.unsubscribe();
 			});
