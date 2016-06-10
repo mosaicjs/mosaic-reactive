@@ -15,14 +15,12 @@ describe('Stream', function() {
 		});
 
 		var expected = [];
-		source.subscribe(function(p) {
-			return p.then(function(value) {
-				if (!value) {
-					source.resolve();
-				} else {
-					expected.push(value);
-				}
-			});
+		source.subscribe(function(value) {
+			if (!value) {
+				source.resolve();
+			} else {
+				expected.push(value);
+			}
 		});
 		var array = [ 'first', 'second', 'third', 'fourth', 'fifth' ];
 		array.forEach(function(value) {
@@ -40,23 +38,19 @@ describe('Stream', function() {
 			var source = new reactive.Stream(Promise, {
 				methods : reactive
 			});
-			var upCaseSource = source.map(function(p) {
-				return p.then(function(value) {
-					if (!value)
-						return;
-					return value.toUpperCase();
-				});
+			var upCaseSource = source.map(function(value) {
+				if (!value)
+					return;
+				return value.toUpperCase();
 			});
 
 			var expected = [];
-			upCaseSource.subscribe(function(p) {
-				return p.then(function(value) {
-					if (!value) {
-						source.resolve();
-					} else {
-						expected.push(value);
-					}
-				});
+			upCaseSource.subscribe(function(value) {
+				if (!value) {
+					source.resolve();
+				} else {
+					expected.push(value);
+				}
 			});
 			var array = [ 'first', 'second', 'third', 'fourth', 'fifth' ];
 			array.forEach(function(value) {
@@ -79,13 +73,11 @@ describe('Stream', function() {
 			var result = source.clone().zip(first, second);
 
 			var testArray = [];
-			result.subscribe(function(p) {
-				return p.then(function(array) {
-					if (!array)
-						source.resolve();
-					else
-						testArray.push(array);
-				});
+			result.subscribe(function(array) {
+				if (!array)
+					source.resolve();
+				else
+					testArray.push(array);
 			});
 
 			[ 'first', 'second', 'third', 'fourth', 'fifth' ]//
@@ -113,13 +105,11 @@ describe('Stream', function() {
 			var result = source.clone().merge([ first, second ]);
 
 			var testArray = [];
-			result.subscribe(function(p) {
-				return p.then(function(value) {
-					if (!value)
-						source.resolve();
-					else
-						testArray.push(value);
-				});
+			result.subscribe(function(value) {
+				if (!value)
+					source.resolve();
+				else
+					testArray.push(value);
 			});
 
 			var control = [ 'first', 'A', 'second', 'B', 'third', 'C',
@@ -144,20 +134,17 @@ describe('Stream', function() {
 			var result = source.clone().buffered(2, first);
 
 			var testArray = [];
-			result.subscribe(function(p) {
-				return p.then(function(value) {
-					if (!value) {
-						first.resolve();
-						// Stop async
-						setTimeout(function() {
-							source.resolve();
-						});
-					} else {
-						testArray.push(value);
-					}
-				});
+			result.subscribe(function(value) {
+				if (!value) {
+					first.resolve();
+					// Stop async
+					setTimeout(function() {
+						source.resolve();
+					});
+				} else {
+					testArray.push(value);
+				}
 			});
-
 			var control = [ 'first', 'A', 'second', 'B', 'third', 'C',
 					'fourth', 'D', 'fifth', 'E', 'sixth' ];
 			control.forEach(function(val, i) {
@@ -175,7 +162,9 @@ describe('Stream', function() {
 
 function test(message, action) {
 	it(message, function(done) {
-		return Promise.resolve().then(action).then(function() {
+		return Promise.resolve().then(function() {
+			return action();
+		}).then(function() {
 			done();
 		}, done);
 	})
