@@ -2,17 +2,20 @@
 
 A very simple reactive framework inspired by the http://reactivex.io/.
 Features:
- * < 250 lines of code; < 5 (kbytes non minimized)
+ * 251 lines of code; 8Kb (non minimized)
  * Based on PromiseA-compliant promises; can be used with any external promise 
    implementations.
  * Each stream is a deferred object with resolve/reject/then methods. Main methods:
-   - deferred
-   - stream
+   - Deferred
+   - Stream
  * Provides the following methods:
-   - buffered 
+   - buffered
+   - each
    - filter
+   - index
    - map
    - merge
+   - pipe
    - zip
  * Experimental methods
    - delay
@@ -23,29 +26,25 @@ Example:
 // var Promise = require('promise'); // - not required in NodeJS environment 
 var reactive = require('mosaic-reactive');
 
-var source = source(Promise, {
-    methods: reactive  
-});
-source.map(function(p){
-    return p.then(function(value){
-        return value.toUpperCase();
-    });
+var source = reactive.Stream(Promise, {
+	methods : reactive
 });
 
-source.subscirbe(function(p){
-    return p.then(function(value){
-        console.log('* ', value);
-    });
-});
-var array = ['first', 'second', 'third', 'fourth', 'fifth']; 
-array.forEach(function(value){
-    source.emit(value);
+var out = source.map(function(value) {
+	return value.toUpperCase();
+}).each(function(value) {
+	console.log('* ', value);
 });
 
-return source.then(function(){
-    console.log('Finished');
-}, function(err){
-    console.log('Error!', err);
+var array = [ 'first', 'second', 'third', 'fourth', 'fifth' ];
+array.forEach(source.emit);
+source.end();
+
+return out.then(function() {
+	console.log('Finished');
+}, function(err) {
+	console.log('Error!', err);
 });
+
 
 ```

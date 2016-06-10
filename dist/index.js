@@ -90,9 +90,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				buffer = [];
 			}
 		});
-		result.done(function() {
-			subsciption.unsubscribe();
-		});
+		result.done(subscription);
 		stream.done(function() {
 			if (buffer.length > 0) {
 				result.emit(buffer);
@@ -150,7 +148,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		var subscription = stream.subscribe(function(val) {
 			f(val);
 		});
-		stream.done(subscription.unsubscribe);
+		stream.done(subscription);
 		return stream;
 	}
 
@@ -169,7 +167,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				result.emit(p);
 			}
 		});
-		result.done(subscription.unsubscribe);
+		result.done(subscription);
 		return result;
 	}
 	module.exports = filter;
@@ -204,7 +202,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		var subscription = stream.subscribe(function(val) {
 			result.emit(f ? f(val) : val);
 		});
-		result.done(subscription.unsubscribe);
+		result.done(subscription);
 		return result;
 	}
 
@@ -233,7 +231,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 		result.done(function() {
 			subscriptions.forEach(function(subscription) {
-				subscription.unsubscribe();
+				subscription();
 			});
 		});
 		return result;
@@ -250,9 +248,7 @@ return /******/ (function(modules) { // webpackBootstrap
 			stream.emit(value);
 		});
 		that.then(stream.resolve, stream.reject);
-		that.done(function() {
-			subscription.unsubscribe();
-		})
+		that.done(subscription);
 		return that;
 	}
 	module.exports = pipe;
@@ -296,15 +292,19 @@ return /******/ (function(modules) { // webpackBootstrap
 		return strm;
 
 		function subscribe(listener) {
+			var f;
 			if (!strm.closed) {
 				listeners.push(listener);
-			}
-			return {
-				strm : strm,
-				unsubscribe : function() {
+				f = function() {
+				};
+			} else {
+				f = function() {
 					return strm.unsubscribe(listener);
-				}
-			};
+				};
+			}
+			f.unsubscribe = f.end = f;
+			f.stream = f.strm = strm;
+			return f;
 		}
 
 		function unsubscribe(listener) {
@@ -372,7 +372,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		second.then(result.resolve, result.reject);
 		result.done(function() {
 			subscriptions.forEach(function(subscription) {
-				subscription.unsubscribe();
+				subscription.end();
 			});
 		});
 		return result;

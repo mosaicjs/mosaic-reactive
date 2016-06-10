@@ -23,17 +23,17 @@ describe('Stream', function() {
 			}
 		});
 		var pos = 0;
-		source.each(function(val){
+		source.each(function(val) {
 			if (val) {
 				expect(val).to.eql(array[pos++]);
 			}
 		});
-		
+
 		var array = [ 'first', 'second', 'third', 'fourth', 'fifth' ];
 		array.forEach(function(value) {
 			source.emit(value);
 		});
-		source.emit();
+		source.end();
 		return source.then(function() {
 			expect(expected).to.eql(array);
 		});
@@ -63,7 +63,7 @@ describe('Stream', function() {
 			array.forEach(function(value) {
 				source.emit(value);
 			});
-			source.emit();
+			source.end();
 			return upCaseSource.then(function() {
 				expect(expected).to.eql(array.map(function(val) {
 					return val.toUpperCase();
@@ -81,10 +81,7 @@ describe('Stream', function() {
 
 			var testArray = [];
 			result.subscribe(function(array) {
-				if (!array)
-					source.resolve();
-				else
-					testArray.push(array);
+				testArray.push(array);
 			});
 
 			[ 'first', 'second', 'third', 'fourth', 'fifth' ]//
@@ -94,7 +91,7 @@ describe('Stream', function() {
 			[ 'A', 'B', 'C', 'D', 'E' ].forEach(function(val) {
 				second.emit(val);
 			})
-			result.emit();
+			source.end();
 			return source.then(function() {
 				expect(testArray).to
 						.eql([ [ 'first', 'A' ], [ 'second', 'B' ],
@@ -113,10 +110,7 @@ describe('Stream', function() {
 
 			var testArray = [];
 			result.subscribe(function(value) {
-				if (!value)
-					source.resolve();
-				else
-					testArray.push(value);
+				testArray.push(value);
 			});
 
 			var control = [ 'first', 'A', 'second', 'B', 'third', 'C',
@@ -128,7 +122,7 @@ describe('Stream', function() {
 					first.emit(val);
 				}
 			});
-			result.emit();
+			source.end();
 			return source.then(function() {
 				expect(testArray).to.eql(control);
 			});
@@ -142,22 +136,17 @@ describe('Stream', function() {
 
 			var testArray = [];
 			result.subscribe(function(value) {
-				if (!value) {
-					first.resolve();
-					// Stop async
-					setTimeout(function() {
-						source.resolve();
-					});
-				} else {
-					testArray.push(value);
-				}
+				testArray.push(value);
 			});
 			var control = [ 'first', 'A', 'second', 'B', 'third', 'C',
 					'fourth', 'D', 'fifth', 'E', 'sixth' ];
 			control.forEach(function(val, i) {
 				first.emit(val);
 			});
-			result.emit();
+			setTimeout(function() {
+				first.end();
+				source.end();
+			}, 10);
 			return source.then(function() {
 				expect(testArray).to.eql([ [ 'first', 'A' ], [ 'second', 'B' ],
 						[ 'third', 'C' ], [ 'fourth', 'D' ], [ 'fifth', 'E' ],
