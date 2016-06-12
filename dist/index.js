@@ -114,6 +114,13 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 		promise.Promise = Promise;
 		promise.resolve = resolve;
+		promise.destroy = promise.end = function(err, result) {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(result);
+			}
+		}
 		promise.reject = reject;
 		promise.fin = promise.done = function(method) {
 			return promise.then(method, method);
@@ -162,9 +169,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		stream = stream || this;
 		var result = stream.clone();
 		stream.then(result.resolve, result.reject);
-		var subscription = stream.subscribe(function(p) {
-			if (filter(p)) {
-				result.emit(p);
+		var subscription = stream.subscribe(function(value) {
+			if (filter(value)) {
+				result.emit(value);
 			}
 		});
 		result.done(subscription);
@@ -244,11 +251,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function pipe(stream, that) {
 		that = that || this;
-		var subscription = that.subscribe(function(value) {
+		that.each(function(value){
 			stream.emit(value);
 		});
 		that.then(stream.resolve, stream.reject);
-		that.done(subscription);
 		return that;
 	}
 	module.exports = pipe;
@@ -273,7 +279,6 @@ return /******/ (function(modules) { // webpackBootstrap
 		strm.subscribe = subscribe;
 		strm.unsubscribe = unsubscribe;
 		strm.emit = emit;
-		strm.destroy = strm.end = strm.resolve;
 		strm.clone = clone;
 		strm.closed = false;
 		strm.done(function() {
