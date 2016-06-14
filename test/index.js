@@ -1,1 +1,1 @@
-require('./StateTest');
+require('./StreamTest');
