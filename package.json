@@ -1,6 +1,6 @@
 {
   "name": "mosaic-reactive",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Light-weight reactive library based on Promises/A-compliant implementations",
   "main": "index.js",
   "scripts": {
