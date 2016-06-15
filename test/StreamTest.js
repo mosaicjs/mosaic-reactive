@@ -2,31 +2,20 @@ var expect = require('expect.js');
 var reactive = require('../');
 
 describe('Stream', function() {
+	function newStream() {
+		return reactive.Stream(Promise, reactive.stream);
+	}
 	test('should be just a Promise', function() {
-		var stream = new reactive.Stream(Promise, {
-			methods : reactive
-		});
+		var stream = newStream();
 		stream.resolve();
 		return stream;
 	});
 	test('should be be able to generate events', function() {
-		var source = new reactive.Stream(Promise, {
-			methods : reactive
-		});
+		var source = newStream();
 
-		var expected = [];
-		source.subscribe(function(value) {
-			if (!value) {
-				source.resolve();
-			} else {
-				expected.push(value);
-			}
-		});
 		var pos = 0;
 		source.each(function(val) {
-			if (val) {
-				expect(val).to.eql(array[pos++]);
-			}
+			expect(val).to.eql(array[pos++]);
 		});
 
 		var array = [ 'first', 'second', 'third', 'fourth', 'fifth' ];
@@ -34,31 +23,20 @@ describe('Stream', function() {
 			source.emit(value);
 		});
 		source.end();
-		return source.then(function() {
-			expect(expected).to.eql(array);
-		});
+		return source;
 	});
 
 	describe('utility methods ', function() {
 		test('map - should be be able to map objects '
 				+ 'from one stream to another', function() {
-			var source = new reactive.Stream(Promise, {
-				methods : reactive
-			});
+			var source = newStream();
+			var expected = [];
 			var upCaseSource = source.map(function(value) {
-				if (!value)
-					return;
 				return value.toUpperCase();
+			}).each(function(value) {
+				expected.push(value);
 			});
 
-			var expected = [];
-			upCaseSource.subscribe(function(value) {
-				if (!value) {
-					source.resolve();
-				} else {
-					expected.push(value);
-				}
-			});
 			var array = [ 'first', 'second', 'third', 'fourth', 'fifth' ];
 			array.forEach(function(value) {
 				source.emit(value);
@@ -70,17 +48,16 @@ describe('Stream', function() {
 				}))
 			});
 		});
+		
 		test('zip - should put objects ' + //
 		'in correspondance from two streams', function() {
-			var source = new reactive.Stream(Promise, {
-				methods : reactive
-			});
+			var source = newStream();
 			var first = source.clone();
 			var second = source.clone();
 			var result = source.clone().zip(first, second);
 
 			var testArray = [];
-			result.subscribe(function(array) {
+			result.each(function(array) {
 				testArray.push(array);
 			});
 
@@ -101,15 +78,13 @@ describe('Stream', function() {
 		});
 		test('merge - should put objects ' + //
 		'in correspondance from two streams', function() {
-			var source = new reactive.Stream(Promise, {
-				methods : reactive
-			});
+			var source = newStream();
 			var first = source.clone();
 			var second = source.clone();
 			var result = source.clone().merge([ first, second ]);
 
 			var testArray = [];
-			result.subscribe(function(value) {
+			result.each(function(value) {
 				testArray.push(value);
 			});
 
@@ -128,14 +103,12 @@ describe('Stream', function() {
 			});
 		});
 		test('buffered - should group objects', function() {
-			var source = new reactive.Stream(Promise, {
-				methods : reactive
-			});
+			var source = newStream();
 			var first = source.clone();
 			var result = source.clone().buffered(2, first);
 
 			var testArray = [];
-			result.subscribe(function(value) {
+			result.each(function(value) {
 				testArray.push(value);
 			});
 			var control = [ 'first', 'A', 'second', 'B', 'third', 'C',

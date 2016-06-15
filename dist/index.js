@@ -62,21 +62,204 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	module.exports = {
-		buffered : __webpack_require__(2),
 		Deferred : __webpack_require__(3),
-		delay : __webpack_require__(4),
-		each : __webpack_require__(5),
-		filter : __webpack_require__(6),
-		interval : __webpack_require__(7),
-		map : __webpack_require__(8),
-		merge : __webpack_require__(9),
-		pipe : __webpack_require__(10),
+		Extended : __webpack_require__(14),
 		Stream : __webpack_require__(11),
-		zip : __webpack_require__(12)
+		StreamMixin : __webpack_require__(13),
+		stream : __webpack_require__(15)
 	};
 
 /***/ },
-/* 2 */
+/* 2 */,
+/* 3 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Extended = __webpack_require__(14);
+	function Deferred(Promise, extensions, args) {
+		var resolve, reject;
+		return Extended(new Promise(function(a, b) {
+			resolve = a;
+			reject = b;
+		}), [ function(that) {
+			return {
+				initialize : function() {
+					that.Promise = Promise;
+					that.resolve = resolve;
+					that.reject = reject;
+					that.destroy = that.end;
+					that.fin = that.done;
+				},
+				end : function(err, result) {
+					if (err) {
+						reject(err);
+					} else {
+						resolve(result);
+					}
+					return that;
+				},
+				done : function(method) {
+					that.then(method, method);
+					return that;
+				}
+			}
+		} ].concat(extensions || []), args);
+	}
+	module.exports = Deferred;
+
+/***/ },
+/* 4 */,
+/* 5 */,
+/* 6 */,
+/* 7 */,
+/* 8 */,
+/* 9 */,
+/* 10 */,
+/* 11 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Deferred = __webpack_require__(3);
+	var StreamMixin = __webpack_require__(13);
+	module.exports = function Stream(Promise, options) {
+		options = options || this || {};
+		return Deferred(Promise, [ StreamMixin, {
+			_newClone : function() {
+				return new Stream(Promise, options);
+			},
+		}, options ]);
+
+	}
+
+
+/***/ },
+/* 12 */,
+/* 13 */
+/***/ function(module, exports) {
+
+	module.exports = function(that) {
+		return {
+			_newClone : function() {
+				throw new Error();
+			},
+			initialize : function(options) {
+				that.listeners = [];
+				that.clones = [];
+				that.closed = false;
+				that.options = options || {};
+				that.write = that.fire = that.emit;
+				that.on = that.subscribe;
+				that.off = that.unsubscribe;
+				that.done(function() {
+					that.listeners = [];
+					that.closed = true;
+				});
+				that.then(function(result) {
+					that.clones.forEach(function(clone) {
+						clone.resolve(result);
+					});
+				}, function(err) {
+					that.clones.forEach(function(clone) {
+						clone.reject(err);
+					});
+				})
+
+			},
+			subscribe : function(listener) {
+				var f;
+				if (!that.closed) {
+					that.listeners.push(listener);
+					f = function() {
+						return that.unsubscribe(listener);
+					};
+				} else {
+					f = function() {
+					};
+				}
+				f.unsubscribe = f.end = f;
+				f.that = f.that = that;
+				return f;
+			},
+			unsubscribe : function(listener) {
+				removeFromList(that.listeners, listener);
+				return that;
+			},
+			emit : function(value) {
+				if (!that.closed) {
+					try {
+						that.listeners.forEach(function(listener) {
+							listener(value);
+						});
+					} catch (err) {
+						that.reject(err);
+					}
+				}
+				return that;
+			},
+			clone : function() {
+				var s = that._newClone();
+				that.clones.push(s);
+				s.done(function() {
+					removeFromList(that.clones, s);
+				});
+				return s;
+			}
+		};
+
+		function removeFromList(list, item) {
+			for (var i = list.length - 1; i >= 0; i--) {
+				if (list[i] === item) {
+					list.splice(i, 1);
+				}
+			}
+		}
+	}
+
+/***/ },
+/* 14 */
+/***/ function(module, exports) {
+
+	module.exports = function Extended(that, extensions, args) {
+		var constructors = [];
+		for (var i = 0; i < extensions.length; i++) {
+			var from = extensions[i];
+			if (!from)
+				continue;
+			if (typeof from === 'function') {
+				from = from(that);
+			}
+			for ( var key in from) {
+				if (key === 'initialize') {
+					constructors.push(from[key]);
+				} else {
+					that[key] = from[key];
+				}
+			}
+		}
+		args = args || [];
+		constructors.forEach(function(constructor) {
+			constructor.apply(that, args);
+		});
+		return that;
+	}
+
+
+/***/ },
+/* 15 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = {
+		buffered : __webpack_require__(16),
+		delay : __webpack_require__(17),
+		each : __webpack_require__(18),
+		filter : __webpack_require__(19),
+		interval : __webpack_require__(20),
+		map : __webpack_require__(21),
+		merge : __webpack_require__(22),
+		pipe : __webpack_require__(23),
+		zip : __webpack_require__(24)
+	};
+
+/***/ },
+/* 16 */
 /***/ function(module, exports) {
 
 	function buffered(size, stream) {
@@ -103,36 +286,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = buffered;
 
 /***/ },
-/* 3 */
-/***/ function(module, exports) {
-
-	function Deferred(Promise) {
-		var resolve, reject;
-		var promise = new Promise(function(a, b) {
-			resolve = a;
-			reject = b;
-		});
-		promise.Promise = Promise;
-		promise.resolve = resolve;
-		promise.destroy = promise.end = function(err, result) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(result);
-			}
-			return promise;
-		}
-		promise.reject = reject;
-		promise.fin = promise.done = function(method) {
-			promise.then(method, method);
-			return promise;
-		};
-		return promise;
-	}
-	module.exports = Deferred;
-
-/***/ },
-/* 4 */
+/* 17 */
 /***/ function(module, exports) {
 
 	function delay(timeout, result) {
@@ -149,7 +303,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = delay;
 
 /***/ },
-/* 5 */
+/* 18 */
 /***/ function(module, exports) {
 
 	function each(f, stream) {
@@ -164,7 +318,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = each;
 
 /***/ },
-/* 6 */
+/* 19 */
 /***/ function(module, exports) {
 
 	function filter(filter, stream) {
@@ -182,7 +336,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = filter;
 
 /***/ },
-/* 7 */
+/* 20 */
 /***/ function(module, exports) {
 
 	function interval(timeout, result) {
@@ -201,7 +355,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = interval;
 
 /***/ },
-/* 8 */
+/* 21 */
 /***/ function(module, exports) {
 
 	function map(f, stream) {
@@ -218,7 +372,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = map;
 
 /***/ },
-/* 9 */
+/* 22 */
 /***/ function(module, exports) {
 
 	function merge(streams, result) {
@@ -248,7 +402,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = merge;
 
 /***/ },
-/* 10 */
+/* 23 */
 /***/ function(module, exports) {
 
 	function pipe(stream, that) {
@@ -262,94 +416,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = pipe;
 
 /***/ },
-/* 11 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var Deferred = __webpack_require__(3);
-
-	function Stream(Promise, options) {
-		var stream = new Deferred(Promise);
-		var options = options || {};
-		var handled = false;
-		var listeners = [];
-		var clones = [];
-		if (options.methods) {
-			for ( var name in options.methods) {
-				stream[name] = options.methods[name];
-			}
-		}
-		stream.subscribe = function(listener) {
-			var f;
-			if (!stream.closed) {
-				listeners.push(listener);
-				f = function() {
-					return stream.unsubscribe(listener);
-				};
-			} else {
-				f = function() {
-				};
-			}
-			f.unsubscribe = f.end = f;
-			f.stream = f.stream = stream;
-			return f;
-		};
-		stream.unsubscribe = function(listener) {
-			removeFromList(listeners, listener);
-			return stream;
-		};
-		stream.write = stream.emit = function(value) {
-			if (!stream.closed) {
-				try {
-					listeners.forEach(function(listener) {
-						listener(value);
-					});
-				} catch (err) {
-					stream.reject(err);
-				}
-			}
-			return stream;
-		};
-		stream._newClone = function(Promise, options) {
-			return new Stream(Promise, options);
-		}
-		stream.clone = function() {
-			var s = stream._newClone(stream.Promise, options);
-			clones.push(s);
-			s.done(function() {
-				removeFromList(clones, s);
-			});
-			return s;
-		};
-		stream.closed = false;
-		stream.done(function() {
-			listeners = [];
-			stream.closed = true;
-		});
-		stream.then(function(result) {
-			clones.forEach(function(clone) {
-				clone.resolve(result);
-			});
-		}, function(err) {
-			clones.forEach(function(clone) {
-				clone.reject(err);
-			});
-		})
-		return stream;
-
-		function removeFromList(list, item) {
-			for (var i = list.length - 1; i >= 0; i--) {
-				if (list[i] === item) {
-					list.splice(i, 1);
-				}
-			}
-		}
-	}
-
-	module.exports = Stream;
-
-
-/***/ },
-/* 12 */
+/* 24 */
 /***/ function(module, exports) {
 
 	function zip(first, second, result) {
