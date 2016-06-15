@@ -1,8 +1,6 @@
 var reactive = require('../');
 
-var source = reactive.Stream(Promise, {
-	methods : reactive
-});
+var source = reactive.Stream(Promise, reactive.stream);
 
 var out = source.map(function(value) {
 	return value.toUpperCase();

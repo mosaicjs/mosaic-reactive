@@ -44,7 +44,5 @@ return out.then(function() {
 
 // Creates and returns a new stream
 function newStream() {
-	return reactive.Stream(Promise, {
-		methods : reactive
-	});
+	return reactive.Stream(Promise, reactive.stream);
 }
