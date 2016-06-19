@@ -243,12 +243,13 @@ return /******/ (function(modules) { // webpackBootstrap
 		delay : __webpack_require__(9),
 		each : __webpack_require__(10),
 		filter : __webpack_require__(11),
-		interval : __webpack_require__(12),
-		map : __webpack_require__(13),
-		merge : __webpack_require__(14),
-		pipe : __webpack_require__(15),
-		sort : __webpack_require__(16),
-		zip : __webpack_require__(17)
+		group : __webpack_require__(12),
+		interval : __webpack_require__(13),
+		map : __webpack_require__(14),
+		merge : __webpack_require__(15),
+		pipe : __webpack_require__(16),
+		sort : __webpack_require__(17),
+		zip : __webpack_require__(18)
 	};
 
 /***/ },
@@ -365,6 +366,38 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 12 */
 /***/ function(module, exports) {
 
+	function group(comparator, stream) {
+		stream = stream || this;
+		var result = stream.clone();
+		if (!comparator) {
+			comparator = function(a, b) {
+				return a == b;
+			}
+		}
+		var buffer = [];
+		var prev;
+		stream.each(function(value) {
+			if (prev !== undefined && comparator(prev, value) != 0) {
+				result.emit(buffer);
+				buffer = [];
+			}
+			buffer.push(value);
+			prev = value;
+		});
+		stream.done(function() {
+			if (buffer.length) {
+				result.emit(buffer);
+			}
+		});
+		return result;
+	}
+
+	module.exports = group;
+
+/***/ },
+/* 13 */
+/***/ function(module, exports) {
+
 	function interval(timeout, result) {
 		result = result || this;
 		var i = 0;
@@ -381,7 +414,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = interval;
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports) {
 
 	function map(f, stream) {
@@ -398,7 +431,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = map;
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports) {
 
 	function merge(streams, result) {
@@ -422,7 +455,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = merge;
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports) {
 
 	function pipe(stream, that) {
@@ -436,7 +469,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = pipe;
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports) {
 
 	function sort(streams, compare, result) {
@@ -498,7 +531,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = sort;
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports) {
 
 	function zip(streams, result) {
