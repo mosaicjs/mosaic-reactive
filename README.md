@@ -2,7 +2,7 @@
 
 A very simple reactive framework inspired by the http://reactivex.io/.
 Features:
- * 251 lines of code; 8Kb (non minimized)
+ * 350 lines of code; 8Kb (non minimized)
  * Based on PromiseA-compliant promises; can be used with any external promise 
    implementations.
  * Each stream is a deferred object with resolve/reject/then methods. Main methods:
