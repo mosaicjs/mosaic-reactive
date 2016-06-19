@@ -62,19 +62,18 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	module.exports = {
-		Deferred : __webpack_require__(3),
-		Extended : __webpack_require__(14),
-		Stream : __webpack_require__(11),
-		StreamMixin : __webpack_require__(13),
-		stream : __webpack_require__(15)
+		Deferred : __webpack_require__(2),
+		Extended : __webpack_require__(3),
+		Stream : __webpack_require__(4),
+		StreamMixin : __webpack_require__(5),
+		stream : __webpack_require__(6)
 	};
 
 /***/ },
-/* 2 */,
-/* 3 */
+/* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Extended = __webpack_require__(14);
+	var Extended = __webpack_require__(3);
 	function Deferred(Promise, extensions, args) {
 		var resolve, reject;
 		return Extended(new Promise(function(a, b) {
@@ -107,18 +106,40 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = Deferred;
 
 /***/ },
-/* 4 */,
-/* 5 */,
-/* 6 */,
-/* 7 */,
-/* 8 */,
-/* 9 */,
-/* 10 */,
-/* 11 */
+/* 3 */
+/***/ function(module, exports) {
+
+	module.exports = function Extended(that, extensions, args) {
+		var constructors = [];
+		for (var i = 0; i < extensions.length; i++) {
+			var from = extensions[i];
+			if (!from)
+				continue;
+			if (typeof from === 'function') {
+				from = from(that);
+			}
+			for ( var key in from) {
+				if (key === 'initialize') {
+					constructors.push(from[key]);
+				} else {
+					that[key] = from[key];
+				}
+			}
+		}
+		args = args || [];
+		constructors.forEach(function(constructor) {
+			constructor.apply(that, args);
+		});
+		return that;
+	}
+
+
+/***/ },
+/* 4 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Deferred = __webpack_require__(3);
-	var StreamMixin = __webpack_require__(13);
+	var Deferred = __webpack_require__(2);
+	var StreamMixin = __webpack_require__(5);
 	module.exports = function Stream(Promise, options) {
 		options = options || this || {};
 		return Deferred(Promise, [ StreamMixin, {
@@ -131,8 +152,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 12 */,
-/* 13 */
+/* 5 */
 /***/ function(module, exports) {
 
 	module.exports = function(that) {
@@ -214,53 +234,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 /***/ },
-/* 14 */
-/***/ function(module, exports) {
-
-	module.exports = function Extended(that, extensions, args) {
-		var constructors = [];
-		for (var i = 0; i < extensions.length; i++) {
-			var from = extensions[i];
-			if (!from)
-				continue;
-			if (typeof from === 'function') {
-				from = from(that);
-			}
-			for ( var key in from) {
-				if (key === 'initialize') {
-					constructors.push(from[key]);
-				} else {
-					that[key] = from[key];
-				}
-			}
-		}
-		args = args || [];
-		constructors.forEach(function(constructor) {
-			constructor.apply(that, args);
-		});
-		return that;
-	}
-
-
-/***/ },
-/* 15 */
+/* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
 	module.exports = {
-		buffered : __webpack_require__(16),
-		combine : __webpack_require__(25),
-		delay : __webpack_require__(17),
-		each : __webpack_require__(18),
-		filter : __webpack_require__(19),
-		interval : __webpack_require__(20),
-		map : __webpack_require__(21),
-		merge : __webpack_require__(22),
-		pipe : __webpack_require__(23),
-		zip : __webpack_require__(24)
+		buffered : __webpack_require__(7),
+		combine : __webpack_require__(8),
+		delay : __webpack_require__(9),
+		each : __webpack_require__(10),
+		filter : __webpack_require__(11),
+		interval : __webpack_require__(12),
+		map : __webpack_require__(13),
+		merge : __webpack_require__(14),
+		pipe : __webpack_require__(15),
+		zip : __webpack_require__(16)
 	};
 
 /***/ },
-/* 16 */
+/* 7 */
 /***/ function(module, exports) {
 
 	function buffered(size, stream) {
@@ -287,7 +278,40 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = buffered;
 
 /***/ },
-/* 17 */
+/* 8 */
+/***/ function(module, exports) {
+
+	function combine(first, second, result) {
+		result = result || this;
+		var subscriptions = [];
+		var a, b;
+		subscriptions.push(first.subscribe(function(val) {
+			a = val;
+			doCombine();
+		}));
+		subscriptions.push(second.subscribe(function(val) {
+			b = val;
+			doCombine();
+		}));
+		function doCombine() {
+			if (a !== undefined && b !== undefined) {
+				result.emit([ a, b ]);
+			}
+		}
+		first.then(result.resolve, result.reject);
+		second.then(result.resolve, result.reject);
+		result.done(function() {
+			subscriptions.forEach(function(subscription) {
+				subscription.end();
+			});
+		});
+		return result;
+	}
+
+	module.exports = combine;
+
+/***/ },
+/* 9 */
 /***/ function(module, exports) {
 
 	function delay(timeout, result) {
@@ -304,7 +328,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = delay;
 
 /***/ },
-/* 18 */
+/* 10 */
 /***/ function(module, exports) {
 
 	function each(f, stream) {
@@ -319,7 +343,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = each;
 
 /***/ },
-/* 19 */
+/* 11 */
 /***/ function(module, exports) {
 
 	function filter(filter, stream) {
@@ -337,7 +361,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = filter;
 
 /***/ },
-/* 20 */
+/* 12 */
 /***/ function(module, exports) {
 
 	function interval(timeout, result) {
@@ -356,7 +380,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = interval;
 
 /***/ },
-/* 21 */
+/* 13 */
 /***/ function(module, exports) {
 
 	function map(f, stream) {
@@ -373,7 +397,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = map;
 
 /***/ },
-/* 22 */
+/* 14 */
 /***/ function(module, exports) {
 
 	function merge(streams, result) {
@@ -403,7 +427,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = merge;
 
 /***/ },
-/* 23 */
+/* 15 */
 /***/ function(module, exports) {
 
 	function pipe(stream, that) {
@@ -417,7 +441,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = pipe;
 
 /***/ },
-/* 24 */
+/* 16 */
 /***/ function(module, exports) {
 
 	function zip(first, second, result) {
@@ -450,39 +474,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	module.exports = zip;
-
-/***/ },
-/* 25 */
-/***/ function(module, exports) {
-
-	function combine(first, second, result) {
-		result = result || this;
-		var subscriptions = [];
-		var a, b;
-		subscriptions.push(first.subscribe(function(val) {
-			a = val;
-			doCombine();
-		}));
-		subscriptions.push(second.subscribe(function(val) {
-			b = val;
-			doCombine();
-		}));
-		function doCombine() {
-			if (a !== undefined && b !== undefined) {
-				result.emit([ a, b ]);
-			}
-		}
-		first.then(result.resolve, result.reject);
-		second.then(result.resolve, result.reject);
-		result.done(function() {
-			subscriptions.forEach(function(subscription) {
-				subscription.end();
-			});
-		});
-		return result;
-	}
-
-	module.exports = combine;
 
 /***/ }
 /******/ ])
