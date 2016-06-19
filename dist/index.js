@@ -247,7 +247,8 @@ return /******/ (function(modules) { // webpackBootstrap
 		map : __webpack_require__(13),
 		merge : __webpack_require__(14),
 		pipe : __webpack_require__(15),
-		zip : __webpack_require__(16)
+		sort : __webpack_require__(16),
+		zip : __webpack_require__(17)
 	};
 
 /***/ },
@@ -402,25 +403,19 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function merge(streams, result) {
 		result = result || this;
-		var subscriptions = [];
 		for (var i = 0; i < streams.length; i++) {
 			var stream = streams[i];
 			// Finish the resulting stream if there is an error
 			stream.then(null, function(err) {
 				result.reject(err);
 			});
-			subscriptions.push(stream.subscribe(function(p) {
+			stream.each(function(p) {
 				result.emit(p);
-			}));
+			});
 		}
 		// Close the resulting stream when all streams are finished
 		result.Promise.all(streams).then(function() {
 			result.resolve();
-		});
-		result.done(function() {
-			subscriptions.forEach(function(subscription) {
-				subscription();
-			});
 		});
 		return result;
 	}
@@ -444,32 +439,95 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 16 */
 /***/ function(module, exports) {
 
-	function zip(first, second, result) {
+	function sort(streams, compare, result) {
 		result = result || this;
-		var subscriptions = [];
-		var a = [], b = [];
-		subscriptions.push(first.subscribe(function(p) {
-			a.push(p);
-			doZip();
-		}));
-		subscriptions.push(second.subscribe(function(p) {
-			b.push(p);
-			doZip();
-		}));
-		function doZip() {
-			while (a.length > 0 && b.length > 0) {
-				(function(x, y) {
-					result.emit([ x, y ]);
-				})(a.shift(), b.shift());
+		if (!compare) {
+			compare = function(a, b) {
+				return a > b ? 1 : a < b ? -1 : 0;
+			};
+		}
+		var buffer = [];
+		var counters = [];
+		streams.forEach(function(stream, idx) {
+			var counter = [ 0 ];
+			counters.push(counter);
+			stream.each(function(val) {
+				buffer.push({
+					idx : idx,
+					val : val
+				});
+				counter[0]++;
+				doSort();
+			});
+			stream.done(function() {
+				counter.done = true;
+				doSort();
+			})
+		});
+		result.Promise.all(streams).then(result.resolve, result.reject);
+
+		function doSort() {
+			function available() {
+				var ok = counters.length > 0;
+				for (var i = 0; ok && i < counters.length; i++) {
+					var counter = counters[i]; 
+					ok = counter.done || counter[0] > 0;
+				}
+				if (ok) {
+					for (var i = 0; i < counters.length; i++) {
+						counters[i][0]--;
+					}
+				}
+				return ok;
+			}
+			while (available() && buffer.length) {
+				buffer.sort(function(a, b) {
+					var result = compare(a.val, b.val);
+					if (result === 0) {
+						result = a.idx - b.idx;
+					}
+					return result;
+				});
+				var slot = buffer.shift();
+				result.emit(slot);
 			}
 		}
-		first.then(result.resolve, result.reject);
-		second.then(result.resolve, result.reject);
-		result.done(function() {
-			subscriptions.forEach(function(subscription) {
-				subscription.end();
+		return result;
+	}
+
+	module.exports = sort;
+
+/***/ },
+/* 17 */
+/***/ function(module, exports) {
+
+	function zip(streams, result) {
+		result = result || this;
+		var buffers = [];
+		streams.forEach(function(stream, idx) {
+			var buf = [];
+			buffers.push(buf);
+			stream.each(function(val) {
+				buf.push(val);
+				doZip();
 			});
+			stream.then(result.resolve, result.reject);
 		});
+
+		function doZip() {
+			var ok = true;
+			for (var i = 0; ok && i < buffers.length; i++) {
+				ok = !!buffers[i].length;
+			}
+			if (ok) {
+				var array = [];
+				for (var i = 0; i < buffers.length; i++) {
+					var buf = buffers[i];
+					array.push(buf.shift());
+				}
+				result.emit(array);
+			}
+		}
 		return result;
 	}
 
