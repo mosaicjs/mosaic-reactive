@@ -243,13 +243,14 @@ return /******/ (function(modules) { // webpackBootstrap
 		delay : __webpack_require__(9),
 		each : __webpack_require__(10),
 		filter : __webpack_require__(11),
-		group : __webpack_require__(12),
-		interval : __webpack_require__(13),
-		map : __webpack_require__(14),
-		merge : __webpack_require__(15),
-		pipe : __webpack_require__(16),
-		sort : __webpack_require__(17),
-		zip : __webpack_require__(18)
+		flat : __webpack_require__(12),
+		group : __webpack_require__(13),
+		interval : __webpack_require__(14),
+		map : __webpack_require__(15),
+		merge : __webpack_require__(16),
+		pipe : __webpack_require__(17),
+		sort : __webpack_require__(18),
+		zip : __webpack_require__(19)
 	};
 
 /***/ },
@@ -352,18 +353,40 @@ return /******/ (function(modules) { // webpackBootstrap
 		stream = stream || this;
 		var result = stream.clone();
 		stream.then(result.resolve, result.reject);
-		var subscription = stream.subscribe(function(value) {
+		stream.each(function(value) {
 			if (filter(value)) {
 				result.emit(value);
 			}
 		});
-		result.done(subscription);
 		return result;
 	}
 	module.exports = filter;
 
 /***/ },
 /* 12 */
+/***/ function(module, exports) {
+
+	function flat(stream) {
+		stream = stream || this;
+		var result = stream.clone();
+		stream.then(result.resolve, result.reject);
+		stream.each(function flatValue(val) {
+			if (val === undefined)
+				return;
+			if (!!val && typeof val.each === 'function') {
+				val.each(flatValue);
+			} else if (!!val && Array.isArray(val)) {
+				val.forEach(flatValue);
+			} else {
+				result.emit(val);
+			}
+		});
+		return result;
+	}
+	module.exports = flat;
+
+/***/ },
+/* 13 */
 /***/ function(module, exports) {
 
 	function group(comparator, stream) {
@@ -395,7 +418,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = group;
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports) {
 
 	function interval(timeout, result) {
@@ -414,7 +437,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = interval;
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports) {
 
 	function map(f, stream) {
@@ -431,7 +454,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = map;
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports) {
 
 	function merge(streams, result) {
@@ -455,7 +478,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = merge;
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports) {
 
 	function pipe(stream, that) {
@@ -469,7 +492,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = pipe;
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports) {
 
 	function sort(streams, compare, result) {
@@ -531,7 +554,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = sort;
 
 /***/ },
-/* 18 */
+/* 19 */
 /***/ function(module, exports) {
 
 	function zip(streams, result) {

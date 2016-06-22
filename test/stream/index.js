@@ -1,4 +1,5 @@
 require('./BufferedTest');
+require('./FlatTest');
 require('./GroupTest');
 require('./MapTest');
 require('./MergeTest');
