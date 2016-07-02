@@ -83,16 +83,23 @@ return /******/ (function(modules) { // webpackBootstrap
 			return {
 				initialize : function() {
 					that.Promise = Promise;
-					that.resolve = resolve;
-					that.reject = reject;
+					that.handled = false;
+					that.resolve = function(val) {
+						that.handled = true;
+						resolve(val);
+					}
+					that.reject = function(err) {
+						that.handled = true;
+						reject(err);
+					}
 					that.destroy = that.end;
 					that.fin = that.done;
 				},
 				end : function(err, result) {
 					if (err) {
-						reject(err);
+						that.reject(err);
 					} else {
-						resolve(result);
+						that.resolve(result);
 					}
 					return that;
 				},
@@ -163,14 +170,12 @@ return /******/ (function(modules) { // webpackBootstrap
 			initialize : function(options) {
 				that.listeners = [];
 				that.clones = [];
-				that.closed = false;
 				that.options = options || {};
 				that.write = that.fire = that.emit;
 				that.on = that.subscribe;
 				that.off = that.unsubscribe;
 				that.done(function() {
 					that.listeners = [];
-					that.closed = true;
 				});
 				that.then(function(result) {
 					that.clones.forEach(function(clone) {
@@ -185,7 +190,7 @@ return /******/ (function(modules) { // webpackBootstrap
 			},
 			subscribe : function(listener) {
 				var f;
-				if (!that.closed) {
+				if (!that.handled) {
 					that.listeners.push(listener);
 					f = function() {
 						return that.unsubscribe(listener);
@@ -203,7 +208,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				return that;
 			},
 			emit : function(value) {
-				if (!that.closed) {
+				if (!that.handled) {
 					try {
 						that.listeners.forEach(function(listener) {
 							listener(value);
@@ -214,12 +219,14 @@ return /******/ (function(modules) { // webpackBootstrap
 				}
 				return that;
 			},
-			clone : function() {
+			clone : function(detach) {
 				var s = that._newClone();
-				that.clones.push(s);
-				s.done(function() {
-					removeFromList(that.clones, s);
-				});
+				if (!detach) {
+					that.clones.push(s);
+					s.done(function() {
+						removeFromList(that.clones, s);
+					});
+				}
 				return s;
 			}
 		};
@@ -243,14 +250,15 @@ return /******/ (function(modules) { // webpackBootstrap
 		delay : __webpack_require__(9),
 		each : __webpack_require__(10),
 		filter : __webpack_require__(11),
-		flat : __webpack_require__(12),
-		group : __webpack_require__(13),
-		interval : __webpack_require__(14),
-		map : __webpack_require__(15),
-		merge : __webpack_require__(16),
-		pipe : __webpack_require__(17),
-		sort : __webpack_require__(18),
-		zip : __webpack_require__(19)
+		first : __webpack_require__(12),
+		flat : __webpack_require__(13),
+		group : __webpack_require__(14),
+		interval : __webpack_require__(15),
+		map : __webpack_require__(16),
+		merge : __webpack_require__(17),
+		pipe : __webpack_require__(18),
+		sort : __webpack_require__(19),
+		zip : __webpack_require__(20)
 	};
 
 /***/ },
@@ -259,20 +267,23 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function buffered(size, stream) {
 		stream = stream || this;
-		var result = stream.clone();
+		var result = stream.clone(true);
 		var buffer = [];
-		var subscription = stream.subscribe(function(p) {
+		stream.each(function(p) {
 			buffer.push(p);
 			if (buffer.length >= size) {
 				result.emit(buffer);
 				buffer = [];
 			}
 		});
-		result.done(subscription);
 		stream.done(function() {
-			if (buffer.length > 0) {
-				result.emit(buffer);
-				buffer = [];
+			try {
+				if (buffer.length > 0) {
+					result.emit(buffer);
+					buffer = [];
+				}
+			} finally {
+				result.end();
 			}
 		});
 		return result;
@@ -366,6 +377,27 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 12 */
 /***/ function(module, exports) {
 
+	function first(size, stream) {
+		stream = stream || this;
+		var result = stream.clone();
+		var counter = 0;
+		stream.each(function(data) {
+			if (counter < size) {
+				result.emit(data);
+			}
+			counter++;
+			if (counter == size) {
+				stream.end();
+			}
+		});
+		return result;
+	}
+	module.exports = first;
+
+/***/ },
+/* 13 */
+/***/ function(module, exports) {
+
 	function flat(stream) {
 		stream = stream || this;
 		var result = stream.clone();
@@ -386,12 +418,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = flat;
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports) {
 
 	function group(comparator, stream) {
 		stream = stream || this;
-		var result = stream.clone();
+		var result = stream.clone(true);
 		if (!comparator) {
 			comparator = function(a, b) {
 				return a == b;
@@ -408,8 +440,12 @@ return /******/ (function(modules) { // webpackBootstrap
 			prev = value;
 		});
 		stream.done(function() {
-			if (buffer.length) {
-				result.emit(buffer);
+			try {
+				if (buffer.length) {
+					result.emit(buffer);
+				}
+			} finally {
+				result.end();
 			}
 		});
 		return result;
@@ -418,7 +454,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = group;
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports) {
 
 	function interval(timeout, result) {
@@ -437,7 +473,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = interval;
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports) {
 
 	function map(f, stream) {
@@ -454,7 +490,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = map;
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports) {
 
 	function merge(streams, result) {
@@ -478,7 +514,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = merge;
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports) {
 
 	function pipe(stream, that) {
@@ -492,7 +528,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = pipe;
 
 /***/ },
-/* 18 */
+/* 19 */
 /***/ function(module, exports) {
 
 	function sort(streams, compare, result) {
@@ -554,7 +590,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = sort;
 
 /***/ },
-/* 19 */
+/* 20 */
 /***/ function(module, exports) {
 
 	function zip(streams, result) {
