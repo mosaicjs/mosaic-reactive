@@ -272,11 +272,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var output = stream.clone();
 	  var batch;
 	  var counter = 0;
+	  output.flush = function() {
+	    if (batch) {
+	      batch.end();
+	      batch = null;
+	    }
+	  }
 	  stream.each(function(entry) {
 	    if (counter % batchSize === 0) {
-	      if (batch) {
-	        batch.end();
-	      }
+	      output.flush();
 	      batch = stream.clone();
 	      batch.id = counter / batchSize;
 	      output.write(batch);
@@ -285,9 +289,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    counter++;
 	  });
 	  stream.done(function() {
-	    if (batch) {
-	      batch.end();
-	    }
+	    output.flush();
 	  })
 	  return output;
 	}
