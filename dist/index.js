@@ -269,7 +269,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function batched(batchSize, stream) {
 	  stream = stream || this;
-	  var output = stream.clone();
+	  var output = stream.clone(true);
 	  var batch;
 	  var counter = 0;
 	  output.flush = function() {
@@ -289,7 +289,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    counter++;
 	  });
 	  stream.done(function() {
-	    output.flush();
+	    try {
+	      output.flush();
+	    } finally {
+	      output.end();
+	    }
 	  })
 	  return output;
 	}
@@ -300,29 +304,29 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports) {
 
 	function buffered(size, stream) {
-		stream = stream || this;
-		var result = stream.clone(true);
-		var buffer = [];
-	  result.flush = function flush(){
-	    result.emit(buffer);
-	    buffer = [];
+	  stream = stream || this;
+	  var result = stream.clone(true);
+	  var buffer = [];
+	  result.flush = function flush() {
+	    if (buffer.length > 0) {
+	      result.emit(buffer);
+	      buffer = [];
+	    }
 	  };
-		stream.each(function(p) {
-			buffer.push(p);
-			if (buffer.length >= size) {
-			  result.flush();
-			}
-		});
-		stream.done(function() {
-			try {
-				if (buffer.length > 0) {
-				  result.flush();
-				}
-			} finally {
-				result.end();
-			}
-		});
-		return result;
+	  stream.each(function(p) {
+	    buffer.push(p);
+	    if (buffer.length >= size) {
+	      result.flush();
+	    }
+	  });
+	  stream.done(function() {
+	    try {
+	      result.flush();
+	    } finally {
+	      result.end();
+	    }
+	  });
+	  return result;
 	}
 
 	module.exports = buffered;
